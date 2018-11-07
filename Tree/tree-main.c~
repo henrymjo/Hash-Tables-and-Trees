@@ -1,0 +1,161 @@
+/**
+ *This is the main program to test the tree ADT
+ *When run it'll create a tree which is either a bst
+ *or a rbt.
+ *There are also various testing options available using the
+ *cmd associated with each option.
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <getopt.h>
+#include <time.h>
+#include "tree.h"
+#include "mylib.h"
+
+char *filename;
+/**
+ *This is the method that is sent to tree_print. It prints the
+ *the frequecy of each word.
+ *@param freq is the frequency of each word
+ *@param word is the word being checked
+ */
+
+static void print_info(int freq, char *word) {
+    printf("%-4d %s\n", freq, word);
+}
+
+/**
+ *The main method checks for command line arguments and sets
+ *a corrosponding boolean variable to true if the command is entered.
+ *A function is then preformed based on what command(s) were inputed.
+ *Commands are as follows:
+ *-c file:   Check spelling of words
+ *-d:        Print the depth of the tree
+ *-f name:   Write dot output to a chosen file name
+ *-o:        Output representation of the tree in dot form
+ *-r:        Convert tree to a red/black tree
+ *-h:        Display help message
+ *@param argc = the number of arguments.
+ *@param argv = an array holding the arguments
+ *@return = the status of the program (success/failure)
+ */
+int main(int argc, char **argv){
+
+	tree tree;
+	FILE *outfile, *file;
+	char word[256];
+	clock_t spellstart, spellend, fillend, fillstart;
+	const char *optstring = "c:df:orh";
+	char option;
+	int mispelt_count = 0;
+	typedef enum bool_e {false, true} bool_t;
+	bool_t depth = false;
+	bool_t output = false;
+	bool_t spelling = false;
+	bool_t isredblack = false;
+	bool_t rename = false;
+
+	while((option = getopt(argc, argv, optstring)) != EOF){
+
+		switch(option){
+			case 'c':
+				if (optarg != NULL){
+					spelling = true;
+					filename = optarg;
+				}
+				break;
+			case 'd':
+				if(spelling) break;
+				depth = true;
+				break;
+			case 'f':
+				if (optarg != NULL){
+					rename = true;
+					filename = optarg;
+				}
+				break;
+			case 'o':
+				output = true;
+				break;
+			case 'r':
+				isredblack = true;
+				break;
+			case 'h':
+			default:
+			         printf("--------------HELP---------------\n");
+			         printf("-c file:   Check spelling of "
+				 "words\n");
+			         printf("-d:        Print the depth of the "
+				 "tree\n");
+                                 printf("-f file:   Write dot output to "
+				 "file\n");
+				 printf("-o:        Output representation of "
+				 "the tree in dot form\n");
+				 printf("-r:        Convert tree to a "
+				 "red/black tree:\n");
+				 printf("-h:        Display help message\n");
+				 return EXIT_SUCCESS;
+				 break;
+				 }
+	}
+
+
+	tree = isredblack ? tree_new(RBT) : tree_new(BST);
+        
+
+        fillstart = clock();
+	while (getword(word, sizeof word, stdin) != EOF){
+	    	tree = tree_insert(tree, word);
+		tree = tree_fix(tree);
+	}
+        fillend = clock();
+
+	tree_print(tree, print_info);
+
+	if((spelling)&& filename != NULL){
+		file = fopen(filename, "r");
+		if (file!= NULL){
+            		spellstart = clock();
+                	while (getword(word, sizeof word, file) != EOF){
+                		if(tree_search(tree, word) == 0){
+					printf("%s\n", word);
+                    			mispelt_count++;
+                    		}
+                	}
+                 	spellend = clock();
+                        fprintf(stderr, "Fill time     : %f\n", fillend - fillstart /
+                                (double)CLOCKS_PER_SEC);
+                        fprintf(stderr, "Search time   : %f\n", spellend - spellstart /
+                                (double)CLOCKS_PER_SEC);
+			fprintf(stderr, "Unknown words = %d\n", mispelt_count);
+		}else{
+            		fprintf(stderr, "File %s not found.", filename);
+        	}
+
+	}
+
+	if(depth){
+		fprintf(stderr, "The depth of the tree is %d.\n",
+		tree_depth(tree));
+	}
+
+	if(output){
+		if(rename){
+	 		outfile = fopen(filename, "a+");
+	 		tree_output_dot(tree, outfile);
+		}else{
+			filename = "tree-view.dot";
+		        outfile = fopen(filename, "a+");
+	 		tree_output_dot(tree, outfile);
+		}
+	}
+
+
+
+	tree_free(tree);
+	return EXIT_SUCCESS;
+}
+
+
+
